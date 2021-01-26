@@ -27,3 +27,13 @@ GET:  2970    628 =>  1050     -1  Another window
 ```
 
 **ACT** show *GET* if window is moved. *NewX* and *NewY* are new coordinates. If `-1` it means keep current.
+
+## Sample pictures
+
+### Before
+
+<img src="https://raw.githubusercontent.com/Termplexed/mywinhere/Termplexed-sample-images/before-scaled.jpg" />
+
+### After
+
+<img src="https://raw.githubusercontent.com/Termplexed/mywinhere/Termplexed-sample-images/after-scaled.jpg" />
