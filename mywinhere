@@ -1,0 +1,136 @@
+#!/bin/bash
+
+declare -i desktop x1 y1 x2 y2
+declare -i tcols=$(tput cols)
+declare -ir tcols=$(( tcols -= 22 ))
+declare -i dryrun=0
+geom=
+
+print_help()
+{
+	printf "%s [OPTIONS]\n" "$(basename "$0")"
+	printf "\nMove all Windows to main monitor for current Desktop\n\n"
+	printf "OPTIONS\n"
+	printf "  -h --help    This help\n"
+	printf "  -d --dryrun  Dry run\n"
+}
+publish_desktop_spec()
+{
+	# Public variables
+	read -r desktop geom <<<$(
+		wmctrl -d | \
+		awk '
+		$2 == "*" {
+			print $1, $4
+			exit
+		}'
+	)
+}
+publish_primary_rect()
+{
+	# Public variables
+	read -r x1 y1 x2 y2 <<<$(
+		# a[] = 1:Width 2:Height 3:Left 4:Top
+		xrandr | \
+		awk '
+		/ connected primary/{
+			split($4, a, "[x+]")
+			print a[3], a[4], a[3] + a[1], a[4] + a[2]
+			exit
+		}'
+	)
+}
+print_intro()
+{
+	printf "\033[1m"
+	printf "DESKTOP: %d %s\n" "$desktop" "$geom"
+	printf "PRIMARY: Left.Top %d.%d   Right.Bottom %d.%d\n" "$x1" "$y1" "$x2" "$y2"
+	printf "\033[0m\n"
+	(( dryrun )) && printf "\033[1;31mDryrun\033[0m\n\n"
+}
+# Unicode substring
+usubstr()
+{
+	local -i c b n
+	local -ri s="$2"
+	local -ri w="$3"
+	local -r t="$1"
+
+	c=$(printf %s "$s" | wc -c)
+	b=$(printf %s "$s" | wc -m)
+	(( n = w + b - c ))
+	printf %s "${t:s:n}"
+}
+# Remove spaces and trim to fit columns
+trim_title()
+{
+	local -ir wid=$1
+	local -ir col=$2
+	# Trim all repeated whitespace in title (awk)
+	name="$(xdotool getwindowname $wid | awk '$1=$1')"
+	printf "%s" $(usubstr "$name" 0 $col)
+}
+# Do the work.
+retrieve_windows()
+{
+	local -i WINDOW X Y WIDTH HEIGHT SCREEN nx ny
+	local name wid
+
+	#tput rmam
+
+	# Header
+	printf "\033[1;34m"
+	printf "ACT   CurX   CurY =>  NewX   NewY  TITLE\n"
+	printf "\033[0m"
+
+	while read -r wid; do
+		eval $(xdotool getwindowgeometry --shell $wid)
+		# name="$(xdotool getwindowname $wid | awk '$1=$1')"
+		name=$(trim_title $wid $tcols)
+		if (( X < x1 || X >= x2 || Y < y1 || Y >= y2)); then
+			if (( X <  x1 )); then
+				(( nx = x1 + X ))
+			elif (( X >= x2 )); then
+				(( nx = X - (x2 - x1) ))
+			else
+				nx=-1
+			fi
+			if (( Y <  y1 )); then
+				(( ny = y1 + Y ))
+			elif (( Y >= y2 )); then
+				(( ny = Y - (y2 - y1) ))
+			else
+				ny=-1
+			fi
+
+			printf "GET: %5d  %5d => %5d  %5d  \033[1;32m%s\033[0m\n" $X $Y $nx $ny "$name"
+			! ((dryrun)) && wmctrl -i -r "$wid" -e 0,$nx,$ny,-1,-1
+		else
+			printf "     %5d  %5d                  %s\n" $X $Y "$name"
+		fi
+	done <<< $(
+		wmctrl -lpG | \
+		awk -v d=$desktop '
+			$2 == d && $3 != 0 && $NF != "Desktop"{
+				print $1
+			}
+		'
+	)
+
+	#tput smam
+}
+
+case "$1" in
+-h|--help) print_help; exit 1;;
+"") dryrun=0;;
+-d|--dryrun) dryrun=1;;
+# Anything else as an internal
+*) dryrun=1;;
+esac
+
+publish_desktop_spec
+publish_primary_rect
+print_intro
+retrieve_windows
+
+exit 0
