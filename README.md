@@ -1,7 +1,5 @@
 # mywinhere
 
-Test ref issue 1 : mywinhere#1
-
 Script to move all windows to main monitor
 
 Switching on and off mutiple monitors result in windows being spread all over.
