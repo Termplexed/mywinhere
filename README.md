@@ -1,6 +1,6 @@
 # mywinhere
 
-Test ref issue 1 : #1
+Test ref issue 1 : mywinhere#1
 
 Script to move all windows to main monitor
 
